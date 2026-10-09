@@ -7,382 +7,464 @@
 <title>QuizBurst Multiplayer</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
+:root{--bg:#17152d;--panel:#272443;--purple:#7438d8;--muted:#c9c4e9}
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#17152d;color:white;text-align:center}
-header{background:#7438d8;padding:18px;font-size:25px;font-weight:bold}
-main{max-width:650px;margin:auto;padding:18px}
-.card{background:#272443;border-radius:18px;padding:20px;margin:15px 0}
-input,select,button{font-size:17px;padding:12px;border:0;border-radius:9px;margin:5px;max-width:100%}
-input{width:90%;background:#fff;color:#222}
-button{background:#7438d8;color:white;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.4}
-.answer{display:block;width:100%;padding:16px;background:#e44d80}
-.answer:nth-of-type(2){background:#247ad9}
-.answer:nth-of-type(3){background:#d89b21}
-.answer:nth-of-type(4){background:#159b76}
-.small{color:#c9c4e9;font-size:14px}
-#status{color:#ffe17a;overflow-wrap:anywhere}
-.hidden{display:none}
-li{margin:10px;text-align:left}
+body{margin:0;background:var(--bg);color:white;font-family:Arial,sans-serif;text-align:center}
+header{background:var(--purple);padding:18px;font-size:25px;font-weight:900}
+main{max-width:850px;margin:auto;padding:15px}
+.card{background:var(--panel);padding:20px;border-radius:18px;margin:14px 0}
+input,select,button{font:inherit;border:0;border-radius:10px;padding:12px;margin:5px;max-width:100%}
+input,select{width:95%;background:white;color:#17152d}
+button{background:var(--purple);color:white;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+.hidden{display:none!important}
+.muted{color:var(--muted);font-size:14px}
+#status{padding:10px;color:#ffe17a;overflow-wrap:anywhere}
+.bigpin{font-size:42px;letter-spacing:7px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.answer{min-height:75px;width:100%;margin:0;font-size:18px;background:#e44d80}
+.answer:nth-child(4n+2){background:#247ad9}
+.answer:nth-child(4n+3){background:#d89b21}
+.answer:nth-child(4n+4){background:#159b76}
+.poker{background:#fff;color:#222;border:4px solid #e2dced;min-height:130px;border-radius:16px;font-size:18px}
+.poker:nth-child(even){color:#b42042}
+input[type=range]{padding:0}
+#rangeValue{font-size:35px;font-weight:bold}
+#timer{font-size:26px}
+#leaderboard{list-style:none;padding:0}
+#leaderboard li{display:flex;justify-content:space-between;gap:10px;padding:12px;margin:7px 0;background:#373252;border-radius:10px;text-align:left}
+#leaderboard li:first-child{background:#826526}
+#questionList li{text-align:left;margin:8px}
+.stat{display:inline-block;background:#393451;border-radius:10px;padding:10px;margin:4px}
+#feedback{font-size:19px;font-weight:bold;min-height:30px}
+@media(max-width:480px){.grid{grid-template-columns:1fr 1fr}.card{padding:14px}.bigpin{font-size:32px}}
 </style>
 </head>
 <body>
 <header>⚡ QuizBurst</header>
+<div id="status">Ready</div>
 <main>
-<div id="status">Connecting tools…</div>
-
 <section id="home" class="card">
-<h2>Play or host</h2>
+<h1>QuizBurst</h1>
+<p>Make a quiz. Invite friends. Compete for the top spot.</p>
 <button onclick="show('hostSetup')">🎮 Host a quiz</button>
 <button onclick="show('joinSetup')">🚀 Join a quiz</button>
-<p class="small">Multiplayer uses PeerJS. Everyone needs an internet connection.</p>
+<p class="muted">Multiplayer requires internet access.</p>
 </section>
 
 <section id="hostSetup" class="card hidden">
-<h2>Host a quiz</h2>
-<input id="hostName" placeholder="Your host name">
-<button onclick="startHost()">Create lobby</button>
+<h2>Create a lobby</h2>
+<input id="hostName" placeholder="Host name (optional)">
+<button onclick="startHost()">Create room</button>
 <button onclick="show('home')">Back</button>
 </section>
 
 <section id="joinSetup" class="card hidden">
-<h2>Join a quiz</h2>
-<input id="playerName" placeholder="Your nickname">
-<input id="roomPin" placeholder="Room PIN" inputmode="numeric" maxlength="6">
-<button onclick="joinRoom()">Join</button>
+<h2>Join a lobby</h2>
+<input id="playerName" placeholder="Nickname">
+<input id="roomPin" placeholder="6-digit room PIN" maxlength="6" inputmode="numeric">
+<button onclick="joinRoom()">Join game</button>
 <button onclick="show('home')">Back</button>
 </section>
 
 <section id="lobby" class="card hidden">
-<h2>Quiz lobby</h2>
-<p>Room PIN:</p>
-<h1 id="pinDisplay">------</h1>
-<p id="lobbyMessage">Waiting for players…</p>
+<h2>Game lobby</h2>
+<div class="muted">Share this PIN with your players</div>
+<div id="pinDisplay" class="bigpin">------</div>
+<p id="lobbyMessage">Waiting for players...</p>
 <ul id="players"></ul>
-<div id="hostQuestionTools">
+
+<div id="editor">
 <hr>
-<h3>Create a question</h3>
-<input id="questionText" placeholder="Write your question">
+<h2>Question editor</h2>
+<input id="qText" placeholder="Write the question or clue">
+<label for="qType">Question style</label>
+<select id="qType" onchange="updateEditor()">
+<option value="default">Default — multiple choice</option>
+<option value="poker">Poker — playing cards</option>
+<option value="slider">Slider — guess a number</option>
+<option value="decode">Decode answer — unscramble letters</option>
+<option value="boolean">True or False</option>
+<option value="typed">Type answer</option>
+</select>
+<div id="choiceFields">
 <input id="opt0" placeholder="Answer A">
 <input id="opt1" placeholder="Answer B">
 <input id="opt2" placeholder="Answer C">
 <input id="opt3" placeholder="Answer D">
-<label>Correct answer:</label>
+<label>Correct answer</label>
 <select id="correct">
 <option value="0">A</option><option value="1">B</option>
 <option value="2">C</option><option value="3">D</option>
 </select>
-<br>
-<input id="seconds" type="number" min="5" max="90" value="20" placeholder="Seconds">
-<button onclick="addQuestion()">Add question</button>
+</div>
+<div id="numberFields" class="hidden">
+<input id="minVal" type="number" value="0" placeholder="Minimum">
+<input id="maxVal" type="number" value="100" placeholder="Maximum">
+<input id="correctNum" type="number" value="50" placeholder="Correct number">
+<input id="tolerance" type="number" min="0" value="0" placeholder="Allowed difference">
+</div>
+<div id="textFields" class="hidden">
+<input id="correctText" placeholder="Correct answer">
+</div>
+<div id="booleanFields" class="hidden">
+<label>Correct answer</label>
+<select id="boolCorrect">
+<option value="true">True</option>
+<option value="false">False</option>
+</select>
+</div>
+<label>Time limit (seconds)</label>
+<input id="qSeconds" type="number" min="5" max="120" value="20">
+<button onclick="addQuestion()">＋ Add question</button>
 <ol id="questionList"></ol>
 <button onclick="startGame()">▶ Start quiz</button>
 </div>
 </section>
 
 <section id="game" class="card hidden">
-<h2 id="roundTitle">Question</h2>
-<h3 id="questionDisplay"></h3>
-<h2 id="timer"></h2>
-<div id="answerButtons"></div>
-<p id="answerFeedback"></p>
-<button id="nextButton" class="hidden" onclick="nextQuestion()">Next question ➜</button>
+<div class="stat" id="roundCount">Question 1</div>
+<div class="stat" id="answeredCount">Answered: 0</div>
+<h2 id="questionDisplay"></h2>
+<div id="timer">20</div>
+<div id="answerArea"></div>
+<div id="feedback"></div>
+<div id="hostControls" class="hidden">
+<hr>
+<button onclick="skipQuestion()">⏭ Skip question</button>
+<button id="nextButton" onclick="nextQuestion()">Next question ➜</button>
+<button onclick="endGame()">End quiz</button>
+</div>
 </section>
 
 <section id="results" class="card hidden">
-<h2>🏆 Leaderboard</h2>
+<h1>🏆 Final leaderboard</h1>
+<div id="podium"></div>
 <ol id="leaderboard"></ol>
-<button onclick="location.reload()">Back to start</button>
+<button onclick="location.reload()">New game</button>
 </section>
 </main>
 
 <script>
-const $ = id => document.getElementById(id);
-let peer = null, hostConn = null, connections = {};
-let isHost = false, pin = "", myName = "";
-let roster = {}, questions = [], scores = {};
-let current = -1, answered = false, timerId = null, timeLeft = 0;
-let roundAnswers = {}, gameStarted = false;
+const $=id=>document.getElementById(id);
+let peer=null,hostConn=null,isHost=false,pin="",myName="";
+let connections={},players={},questions=[],scores={},streaks={};
+let current=-1,timeLeft=0,timerId=null,roundAnswers={};
+let roundFinished=false,gameStarted=false,answered=false;
 
-function show(id) {
-  document.querySelectorAll("main section").forEach(s => s.classList.add("hidden"));
+function show(id){
+  document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
   $(id).classList.remove("hidden");
 }
-function setStatus(s) { $("status").textContent = s; }
-function makePin() { return String(Math.floor(100000 + Math.random()*900000)); }
-function safeText(s) { return String(s ?? ""); }
-
-function connectPeer(id, onOpen, onError) {
-  peer = new Peer(id, { debug: 0 });
-  peer.on("open", onOpen);
-  peer.on("error", err => {
-    setStatus("Connection error: " + err.type);
-    if (onError) onError(err);
+function status(s){$("status").textContent=s}
+function safe(s){return String(s??"")}
+function clean(s){return safe(s).trim().toLocaleLowerCase().replace(/\s+/g," ")}
+function send(conn,msg){if(conn&&conn.open)conn.send(msg)}
+function broadcast(msg){Object.values(connections).forEach(c=>send(c,msg))}
+function pinId(p){return "quizburst-"+p}
+function startHost(){
+  if(!window.Peer){status("PeerJS failed to load. Check your internet.");return}
+  isHost=true;myName=$("hostName").value.trim()||"Host";
+  pin=String(Math.floor(100000+Math.random()*900000));
+  status("Creating room...");
+  peer=new Peer(pinId(pin));
+  peer.on("open",()=>{
+    players={};scores={};streaks={};questions=[];current=-1;gameStarted=false;
+    $("pinDisplay").textContent=pin;
+    $("editor").classList.remove("hidden");
+    $("lobbyMessage").textContent="Share the PIN with your players.";
+    $("questionList").innerHTML="";
+    show("lobby");status("Hosting room "+pin);
   });
-  peer.on("disconnected", () => setStatus("Disconnected from PeerJS server. Check internet."));
-}
-
-function startHost() {
-  myName = $("hostName").value.trim() || "Host";
-  isHost = true;
-  pin = makePin();
-  setStatus("Creating room…");
-  connectPeer("quizburst-" + pin, () => {
-    roster = {};
-    questions = [];
-    scores = {};
-    current = -1;
-    gameStarted = false;
-    $("pinDisplay").textContent = pin;
-    $("hostQuestionTools").classList.remove("hidden");
-    $("lobbyMessage").textContent = "Share the PIN with your players.";
-    show("lobby");
-    setStatus("Hosting room " + pin);
-    peer.on("connection", conn => {
-      conn.on("open", () => {
-        if (gameStarted) {
-          conn.send({type:"error", message:"This quiz has already started."});
-          conn.close();
-          return;
-        }
-        const playerId = conn.peer;
-        connections[playerId] = conn;
-        conn.on("data", msg => handleHostMessage(playerId, msg));
-        conn.on("close", () => {
-          delete connections[playerId];
-          delete roster[playerId];
-          updateLobby();
-          broadcast({type:"roster", players:Object.values(roster)});
-        });
-        conn.send({type:"welcome", pin});
+  peer.on("connection",conn=>{
+    conn.on("open",()=>{
+      if(gameStarted){send(conn,{type:"error",message:"The quiz has already started."});conn.close();return}
+      connections[conn.peer]=conn;
+      conn.on("data",msg=>hostMessage(conn.peer,msg));
+      conn.on("close",()=>{
+        delete connections[conn.peer];delete players[conn.peer];
+        updateLobby();broadcast({type:"roster",players:Object.values(players)});
+        updateBoard();
       });
+      send(conn,{type:"hello",pin});
     });
-  }, () => {});
-}
-
-function handleHostMessage(id, msg) {
-  if (!msg || typeof msg !== "object") return;
-  if (msg.type === "join" && !gameStarted) {
-    const name = safeText(msg.name).trim().slice(0,24) || "Player";
-    roster[id] = {id, name};
-    scores[id] = scores[id] || 0;
-    updateLobby();
-    broadcast({type:"roster", players:Object.values(roster)});
-  }
-  if (msg.type === "answer" && gameStarted && msg.round === current &&
-      !Object.prototype.hasOwnProperty.call(roundAnswers,id)) {
-    const q = questions[current];
-    if (!q) return;
-    const correct = Number(msg.choice) === q.correct;
-    roundAnswers[id] = correct;
-    if (correct) scores[id] = (scores[id] || 0) + Math.max(100, timeLeft * 50);
-    if (connections[id]) connections[id].send({type:"answerResult", correct});
-    if (Object.keys(roundAnswers).length >= Object.keys(roster).length) finishRound();
-  }
-}
-
-function updateLobby() {
-  $("players").innerHTML = "";
-  Object.values(roster).forEach(p => {
-    const li = document.createElement("li");
-    li.textContent = p.name;
-    $("players").appendChild(li);
   });
-  $("lobbyMessage").textContent =
-    Object.keys(roster).length + " player(s) connected";
+  peer.on("error",e=>status("PeerJS error: "+e.type+". Try another PIN or refresh."));
 }
-
-function broadcast(data) {
-  Object.values(connections).forEach(c => {
-    if (c && c.open) c.send(data);
+function joinRoom(){
+  if(!window.Peer){status("PeerJS failed to load. Check your internet.");return}
+  myName=$("playerName").value.trim()||"Player";
+  pin=$("roomPin").value.trim();
+  if(!/^\d{6}$/.test(pin)){alert("Enter the six-digit PIN.");return}
+  status("Connecting to host...");
+  peer=new Peer();
+  peer.on("open",()=>{
+    hostConn=peer.connect(pinId(pin),{reliable:true});
+    hostConn.on("open",()=>{
+      send(hostConn,{type:"join",name:myName});
+      $("pinDisplay").textContent=pin;
+      $("editor").classList.add("hidden");
+      show("lobby");
+      $("lobbyMessage").textContent="Connected! Waiting for the host.";
+      status("Joined room "+pin);
+    });
+    hostConn.on("data",playerMessage);
+    hostConn.on("close",()=>status("Connection to host closed."));
+    hostConn.on("error",()=>status("Couldn't reach host."));
   });
+  peer.on("error",e=>status("Connection error: "+e.type+". Check the PIN."));
 }
-
-function addQuestion() {
-  const text = $("questionText").value.trim();
-  const options = [0,1,2,3].map(i => $("opt"+i).value.trim());
-  const correct = Number($("correct").value);
-  const seconds = Math.max(5, Math.min(90, Number($("seconds").value) || 20));
-  if (!text || options.some(o => !o)) {
-    alert("Enter the question and all four answers first!");
-    return;
+function hostMessage(id,m){
+  if(!m||typeof m!=="object")return;
+  if(m.type==="join"&&!gameStarted){
+    players[id]={id,name:safe(m.name).trim().slice(0,24)||"Player"};
+    scores[id]=0;streaks[id]=0;
+    updateLobby();broadcast({type:"roster",players:Object.values(players)});
   }
-  questions.push({text, options, correct, seconds});
-  const li = document.createElement("li");
-  li.textContent = text;
+  if(m.type==="answer"&&gameStarted&&m.round===current&&!roundFinished&&!Object.hasOwn(roundAnswers,id)){
+    const q=questions[current];if(!q)return;
+    const ok=checkAnswer(q,m.value);
+    roundAnswers[id]={correct:ok,value:m.value};
+    if(ok){
+      streaks[id]=(streaks[id]||0)+1;
+      scores[id]=(scores[id]||0)+Math.max(100,Math.round(500+timeLeft*25));
+      if(streaks[id]>=3)scores[id]+=100;
+    }else streaks[id]=0;
+    send(connections[id],{type:"answerResult",correct:ok,score:scores[id],streak:streaks[id]});
+    updateAnswered();updateBoard();
+    broadcast({type:"board",board:getBoard()});
+    if(Object.keys(roundAnswers).length>=Object.keys(players).length)finishRound();
+  }
+}
+function updateLobby(){
+  $("players").innerHTML="";
+  Object.values(players).forEach(p=>{
+    const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li);
+  });
+  $("lobbyMessage").textContent=Object.keys(players).length+" player(s) connected";
+}
+function updateEditor(){
+  const t=$("qType").value;
+  $("choiceFields").classList.toggle("hidden",!["default","poker"].includes(t));
+  $("numberFields").classList.toggle("hidden",t!=="slider");
+  $("textFields").classList.toggle("hidden",!["decode","typed"].includes(t));
+  $("booleanFields").classList.toggle("hidden",t!=="boolean");
+}
+function addQuestion(){
+  const type=$("qType").value,text=$("qText").value.trim();
+  if(!text){alert("Write a question first.");return}
+  const q={type,text,seconds:Math.max(5,Math.min(120,Number($("qSeconds").value)||20))};
+  if(["default","poker"].includes(type)){
+    q.options=[0,1,2,3].map(i=>$("opt"+i).value.trim());
+    q.correct=Number($("correct").value);
+    if(q.options.some(x=>!x)){alert("Fill in all four options.");return}
+  }
+  if(type==="slider"){
+    q.min=Number($("minVal").value);q.max=Number($("maxVal").value);
+    q.correct=Number($("correctNum").value);q.tolerance=Math.max(0,Number($("tolerance").value)||0);
+    if(q.max<=q.min||q.correct<q.min||q.correct>q.max){alert("Check the slider range and correct answer.");return}
+  }
+  if(["decode","typed"].includes(type)){
+    q.correctText=$("correctText").value.trim();
+    if(!q.correctText){alert("Enter the correct answer.");return}
+    if(type==="decode")q.scrambled=scramble(q.correctText);
+  }
+  if(type==="boolean")q.correctText=$("boolCorrect").value;
+  questions.push(q);
+  const li=document.createElement("li");
+  li.textContent=questions.length+". "+text+" ["+type+"]";
   $("questionList").appendChild(li);
-  $("questionText").value = "";
-  [0,1,2,3].forEach(i => $("opt"+i).value = "");
+  $("qText").value="";
+  [0,1,2,3].forEach(i=>$("opt"+i).value="");
+  $("correctText").value="";
 }
-
-function startGame() {
-  if (!questions.length) {
-    alert("Add at least one question first!");
-    return;
+function scramble(s){
+  const letters=s.split("");
+  if(letters.length<3)return letters.reverse().join("");
+  for(let i=letters.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]]}
+  if(letters.join("").toLowerCase()===s.toLowerCase())letters.reverse();
+  return letters.join("");
+}
+function startGame(){
+  if(!questions.length){alert("Add at least one question.");return}
+  gameStarted=true;current=-1;nextQuestion();
+}
+function publicQuestion(q){
+  const o={type:q.type,text:q.text,seconds:q.seconds,min:q.min,max:q.max,
+    options:q.options,scrambled:q.scrambled,index:current,total:questions.length};
+  return o;
+}
+function nextQuestion(){
+  clearInterval(timerId);
+  if(!isHost)return;
+  if(current>=0&&!roundFinished&&!confirm("Move on before everyone has answered?"))return;
+  current++;
+  if(current>=questions.length){endGame();return}
+  roundAnswers={};roundFinished=false;timeLeft=questions[current].seconds;
+  $("hostControls").classList.remove("hidden");
+  $("nextButton").disabled=false;
+  $("feedback").textContent="";
+  $("roundCount").textContent="Question "+(current+1)+" / "+questions.length;
+  renderQuestion(questions[current],true);
+  broadcast({type:"question",question:publicQuestion(questions[current])});
+  updateAnswered();timerId=setInterval(tick,1000);
+}
+function renderQuestion(q,host){
+  $("questionDisplay").textContent=q.text;
+  $("answerArea").innerHTML="";
+  $("timer").textContent=timeLeft+" seconds";
+  if(q.type==="default"||q.type==="poker"){
+    const grid=document.createElement("div");grid.className="grid";
+    q.options.forEach((opt,i)=>{
+      const b=document.createElement("button");
+      b.className=q.type==="poker"?"poker":"answer";
+      b.textContent=q.type==="poker"?["🂡","🂱","🃁","🃑"][i]+"  "+opt: String.fromCharCode(65+i)+". "+opt;
+      b.onclick=()=>submitAnswer(i);
+      grid.appendChild(b);
+    });
+    $("answerArea").appendChild(grid);
+  }else if(q.type==="slider"){
+    const r=document.createElement("input");r.type="range";r.min=q.min;r.max=q.max;r.value=(q.min+q.max)/2;r.id="rangeInput";
+    r.oninput=()=>$("rangeValue").textContent=r.value;
+    const val=document.createElement("div");val.id="rangeValue";val.textContent=r.value;
+    const b=document.createElement("button");b.textContent="Lock in answer";b.onclick=()=>submitAnswer(Number(r.value));
+    $("answerArea").append(r,val,b);
+  }else if(q.type==="decode"){
+    const p=document.createElement("h2");p.textContent=q.scrambled||"Decode the clue";
+    const input=document.createElement("input");input.id="typedAnswer";input.placeholder="Unscramble the answer";
+    const b=document.createElement("button");b.textContent="Submit answer";b.onclick=()=>submitAnswer(input.value);
+    $("answerArea").append(p,input,b);
+  }else if(q.type==="typed"){
+    const input=document.createElement("input");input.id="typedAnswer";input.placeholder="Type your answer";
+    const b=document.createElement("button");b.textContent="Submit answer";b.onclick=()=>submitAnswer(input.value);
+    $("answerArea").append(input,b);
+  }else if(q.type==="boolean"){
+    const grid=document.createElement("div");grid.className="grid";
+    ["true","false"].forEach(v=>{
+      const b=document.createElement("button");b.className="answer";
+      b.textContent=v==="true"?"✅ TRUE":"❌ FALSE";b.onclick=()=>submitAnswer(v);
+      grid.appendChild(b);
+    });
+    $("answerArea").appendChild(grid);
   }
-  gameStarted = true;
-  current = -1;
-  broadcast({type:"gameStart", total:questions.length});
+  if(host){
+    $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
+    $("feedback").textContent="Host controls the round. Players answer on their devices.";
+  }else{
+    $("feedback").textContent="Choose your answer!";
+  }
+}
+function submitAnswer(value){
+  if(isHost||answered||roundFinished)return;
+  answered=true;
+  $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
+  send(hostConn,{type:"answer",round:current,value});
+  $("feedback").textContent="Answer locked in!";
+}
+function checkAnswer(q,value){
+  if(q.type==="default"||q.type==="poker")return Number(value)===q.correct;
+  if(q.type==="slider")return Math.abs(Number(value)-q.correct)<=q.tolerance;
+  if(q.type==="boolean")return String(value)===q.correctText;
+  return clean(value)===clean(q.correctText);
+}
+function tick(){
+  if(roundFinished)return;
+  timeLeft--;broadcast({type:"tick",time:timeLeft});
+  $("timer").textContent=timeLeft+" seconds";
+  if(timeLeft<=0)finishRound();
+}
+function updateAnswered(){
+  $("answeredCount").textContent="Answered: "+Object.keys(roundAnswers).length+" / "+Object.keys(players).length;
+}
+function finishRound(){
+  if(!isHost||roundFinished)return;
+  roundFinished=true;clearInterval(timerId);
+  const q=questions[current];
+  $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
+  $("hostControls").classList.remove("hidden");
+  $("nextButton").disabled=false;
+  let correctLabel="";
+  if(["default","poker"].includes(q.type))correctLabel=q.options[q.correct];
+  else if(q.type==="slider")correctLabel=String(q.correct);
+  else if(q.type==="boolean")correctLabel=q.correctText.toUpperCase();
+  else correctLabel=q.correctText;
+  const correctCount=Object.values(roundAnswers).filter(a=>a.correct).length;
+  $("feedback").textContent="Correct answer: "+correctLabel+" • "+correctCount+" correct";
+  broadcast({type:"roundEnd",correctLabel,correctCount,board:getBoard()});
+  updateBoard();
+}
+function skipQuestion(){
+  if(!isHost)return;
+  clearInterval(timerId);
+  roundFinished=true;
+  broadcast({type:"roundEnd",correctLabel:"Question skipped",correctCount:0,board:getBoard()});
   nextQuestion();
 }
-
-function nextQuestion() {
+function getBoard(){
+  return Object.values(players).map(p=>({id:p.id,name:p.name,score:scores[p.id]||0,streak:streaks[p.id]||0}))
+    .sort((a,b)=>b.score-a.score);
+}
+function updateBoard(){
+  const board=getBoard();
+  $("leaderboard").innerHTML="";
+  board.forEach((p,i)=>{
+    const li=document.createElement("li");
+    const left=document.createElement("span");
+    left.textContent=["🥇","🥈","🥉"][i]||("#"+(i+1))+" "+p.name;
+    const right=document.createElement("span");
+    right.textContent=p.score+" pts"+(p.streak>=3?" 🔥":"");
+    li.append(left,right);$("leaderboard").appendChild(li);
+  });
+  if(board.length){
+    $("podium").textContent="Leading: "+board[0].name+" — "+board[0].score+" points";
+  }else $("podium").textContent="No players joined.";
+}
+function endGame(){
   clearInterval(timerId);
-  current++;
-  if (current >= questions.length) {
-    endGame();
+  if(isHost)broadcast({type:"gameOver",board:getBoard()});
+  show("results");updateBoard();status("Quiz finished!");
+}
+function playerMessage(m){
+  if(!m||typeof m!=="object")return;
+  if(m.type==="hello")return;
+  if(m.type==="error"){alert(m.message);return}
+  if(m.type==="roster"){
+    $("players").innerHTML="";
+    (m.players||[]).forEach(p=>{const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li)});
     return;
   }
-  roundAnswers = {};
-  timeLeft = questions[current].seconds;
-  const q = questions[current];
-  $("roundTitle").textContent = `Question ${current+1} of ${questions.length}`;
-  $("questionDisplay").textContent = q.text;
-  $("timer").textContent = timeLeft + " seconds";
-  $("answerFeedback").textContent = "";
-  $("answerButtons").innerHTML = "";
-  $("nextButton").classList.add("hidden");
-  show("game");
-  broadcast({type:"question", index:current, total:questions.length,
-    text:q.text, options:q.options, seconds:q.seconds});
-  tickTimer();
-  timerId = setInterval(tickTimer, 1000);
-}
-
-function tickTimer() {
-  $("timer").textContent = timeLeft + " seconds";
-  if (timeLeft <= 0) {
-    finishRound();
-  } else {
-    timeLeft--;
+  if(m.type==="question"){
+    current=m.question.index;answered=false;roundFinished=false;timeLeft=m.question.seconds;
+    $("roundCount").textContent="Question "+(current+1)+" / "+m.question.total;
+    $("feedback").textContent="";
+    $("hostControls").classList.add("hidden");
+    renderQuestion(m.question,false);show("game");return;
   }
-}
-
-function finishRound() {
-  if (!isHost || $("nextButton").dataset.finished === "yes") return;
-  clearInterval(timerId);
-  $("nextButton").dataset.finished = "yes";
-  $("answerButtons").innerHTML = "";
-  $("answerFeedback").textContent = "Correct answer: " + questions[current].options[questions[current].correct];
-  broadcast({type:"roundEnd", scores, correct:questions[current].correct,
-    correctText:questions[current].options[questions[current].correct]});
-  $("nextButton").classList.remove("hidden");
-  if (Object.keys(roster).length === 0) $("nextButton").classList.remove("hidden");
-  updateLeaderboard();
-}
-
-function updateLeaderboard() {
-  const sorted = Object.values(roster).map(p => ({
-    name:p.name, score:scores[p.id] || 0
-  })).sort((a,b)=>b.score-a.score);
-  $("leaderboard").innerHTML = "";
-  sorted.forEach(p => {
-    const li = document.createElement("li");
-    li.textContent = p.name + " — " + p.score + " points";
-    $("leaderboard").appendChild(li);
-  });
-}
-
-function endGame() {
-  clearInterval(timerId);
-  broadcast({type:"gameOver", scores, players:roster});
-  show("results");
-  updateLeaderboard();
-  setStatus("Quiz complete!");
-}
-
-function joinRoom() {
-  myName = $("playerName").value.trim() || "Player";
-  pin = $("roomPin").value.trim();
-  if (!/^\d{6}$/.test(pin)) {
-    alert("Enter the six-digit room PIN.");
+  if(m.type==="tick"){
+    timeLeft=m.time;$("timer").textContent=timeLeft+" seconds";return;
+  }
+  if(m.type==="answerResult"){
+    $("feedback").textContent=m.correct?"✅ Correct! "+m.score+" points":"❌ Not quite!";
     return;
   }
-  setStatus("Connecting to host…");
-  peer = new Peer();
-  peer.on("open", () => {
-    hostConn = peer.connect("quizburst-" + pin, {reliable:true});
-    hostConn.on("open", () => {
-      hostConn.send({type:"join", name:myName});
-      $("pinDisplay").textContent = pin;
-      $("hostQuestionTools").classList.add("hidden");
-      show("lobby");
-      $("lobbyMessage").textContent = "Connected! Waiting for the host to start.";
-      setStatus("Joined room " + pin);
-    });
-    hostConn.on("data", handlePlayerMessage);
-    hostConn.on("error", () => setStatus("Couldn't reach host. Check the PIN."));
-    hostConn.on("close", () => setStatus("Host connection closed."));
-  });
-  peer.on("error", err => {
-    setStatus("Connection error: " + err.type + ". Check the PIN and try again.");
-  });
-}
-
-function handlePlayerMessage(msg) {
-  if (!msg || typeof msg !== "object") return;
-  if (msg.type === "welcome") return;
-  if (msg.type === "roster") {
-    $("players").innerHTML = "";
-    (msg.players || []).forEach(p => {
-      const li = document.createElement("li");
-      li.textContent = p.name;
-      $("players").appendChild(li);
-    });
+  if(m.type==="board"){
+    const list=m.board||[];$("leaderboard").innerHTML="";
+    list.forEach((p,i)=>{const li=document.createElement("li");li.textContent=(i+1)+". "+p.name+" — "+p.score+" pts";$("leaderboard").appendChild(li)});
+    return;
   }
-  if (msg.type === "gameStart") {
-    show("game");
-    $("answerFeedback").textContent = "Get ready!";
+  if(m.type==="roundEnd"){
+    roundFinished=true;
+    $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
+    $("feedback").textContent="Correct answer: "+m.correctLabel+" • "+m.correctCount+" correct";
+    return;
   }
-  if (msg.type === "question") {
-    answered = false;
-    show("game");
-    $("roundTitle").textContent = `Question ${msg.index+1} of ${msg.total}`;
-    $("questionDisplay").textContent = msg.text;
-    $("timer").textContent = msg.seconds + " seconds";
-    $("answerFeedback").textContent = "";
-    $("nextButton").classList.add("hidden");
-    $("answerButtons").innerHTML = "";
-    msg.options.forEach((option, i) => {
-      const b = document.createElement("button");
-      b.className = "answer";
-      b.textContent = String.fromCharCode(65+i) + ": " + option;
-      b.onclick = () => {
-        if (answered) return;
-        answered = true;
-        [...$("answerButtons").children].forEach(btn => btn.disabled = true);
-        hostConn.send({type:"answer", round:msg.index, choice:i});
-        $("answerFeedback").textContent = "Answer submitted!";
-      };
-      $("answerButtons").appendChild(b);
-    });
-  }
-  if (msg.type === "answerResult") {
-    $("answerFeedback").textContent = msg.correct ? "✅ Correct!" : "❌ Not quite!";
-  }
-  if (msg.type === "roundEnd") {
-    $("answerButtons").innerHTML = "";
-    $("answerFeedback").textContent = "Correct answer: " + msg.correctText;
-  }
-  if (msg.type === "gameOver") {
-    show("results");
-    const players = msg.players || {};
-    const scores = msg.scores || {};
-    const sorted = Object.values(players).map(p => ({
-      name:p.name, score:scores[p.id] || 0
-    })).sort((a,b)=>b.score-a.score);
-    $("leaderboard").innerHTML = "";
-    sorted.forEach(p => {
-      const li = document.createElement("li");
-      li.textContent = p.name + " — " + p.score + " points";
-      $("leaderboard").appendChild(li);
-    });
-    setStatus("Quiz complete!");
-  }
-  if (msg.type === "error") {
-    alert(msg.message || "Unable to join.");
+  if(m.type==="gameOver"){
+    $("leaderboard").innerHTML="";
+    (m.board||[]).forEach((p,i)=>{const li=document.createElement("li");li.textContent=(i+1)+". "+p.name+" — "+p.score+" pts";$("leaderboard").appendChild(li)});
+    show("results");status("Quiz finished!");
   }
 }
+updateEditor();
 </script>
 </body>
 </html>
