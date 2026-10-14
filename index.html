@@ -3,143 +3,92 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QuizBurst Multiplayer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuizBurst</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
-:root{--bg:#17152d;--panel:#272443;--purple:#7438d8;--muted:#c9c4e9}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:white;font-family:Arial,sans-serif;text-align:center}
-header{background:var(--purple);padding:18px;font-size:25px;font-weight:900}
-main{max-width:850px;margin:auto;padding:15px}
-.card{background:var(--panel);padding:20px;border-radius:18px;margin:14px 0}
-input,select,button{font:inherit;border:0;border-radius:10px;padding:12px;margin:5px;max-width:100%}
-input,select{width:95%;background:white;color:#17152d}
-button{background:var(--purple);color:white;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.4;cursor:not-allowed}
+body{margin:0;background:#17152d;color:#fff;font-family:Arial,sans-serif;text-align:center}
+header{padding:20px;background:#7438d8;font-size:27px;font-weight:900}
+main{max-width:900px;margin:auto;padding:14px}
+.panel{background:#272443;border-radius:18px;padding:20px;margin:14px 0}
+button,input{font:inherit;border:0;border-radius:10px;padding:12px;margin:5px;max-width:100%}
+button{background:#7438d8;color:white;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.45}
+input{width:90%;color:#17152d}
 .hidden{display:none!important}
-.muted{color:var(--muted);font-size:14px}
 #status{padding:10px;color:#ffe17a;overflow-wrap:anywhere}
-.bigpin{font-size:42px;letter-spacing:7px}
+#catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.quiz{background:#393451;padding:14px;border-radius:12px}
+.quiz button{width:100%}
+.bigpin{font-size:40px;letter-spacing:6px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.answer{min-height:75px;width:100%;margin:0;font-size:18px;background:#e44d80}
+.answer{width:100%;min-height:68px;margin:0;background:#e44d80}
 .answer:nth-child(4n+2){background:#247ad9}
 .answer:nth-child(4n+3){background:#d89b21}
 .answer:nth-child(4n+4){background:#159b76}
-.poker{background:#fff;color:#222;border:4px solid #e2dced;min-height:130px;border-radius:16px;font-size:18px}
-.poker:nth-child(even){color:#b42042}
-input[type=range]{padding:0}
-#rangeValue{font-size:35px;font-weight:bold}
-#timer{font-size:26px}
+.poker{background:white;color:#222;min-height:100px}
+#timer{font-size:28px;padding:10px}
+#feedback{min-height:30px}
 #leaderboard{list-style:none;padding:0}
-#leaderboard li{display:flex;justify-content:space-between;gap:10px;padding:12px;margin:7px 0;background:#373252;border-radius:10px;text-align:left}
-#leaderboard li:first-child{background:#826526}
-#questionList li{text-align:left;margin:8px}
-.stat{display:inline-block;background:#393451;border-radius:10px;padding:10px;margin:4px}
-#feedback{font-size:19px;font-weight:bold;min-height:30px}
-@media(max-width:480px){.grid{grid-template-columns:1fr 1fr}.card{padding:14px}.bigpin{font-size:32px}}
+#leaderboard li{display:flex;justify-content:space-between;gap:8px;padding:13px;margin:7px 0;background:#393451;border-radius:10px;text-align:left}
+#leaderboard li:first-child{background:#806427}
+.muted{color:#c9c4e9;font-size:14px}
+@media(max-width:480px){.panel{padding:13px}.grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <header>⚡ QuizBurst</header>
 <div id="status">Ready</div>
 <main>
-<section id="home" class="card">
-<h1>QuizBurst</h1>
-<p>Make a quiz. Invite friends. Compete for the top spot.</p>
-<button onclick="show('hostSetup')">🎮 Host a quiz</button>
-<button onclick="show('joinSetup')">🚀 Join a quiz</button>
-<p class="muted">Multiplayer requires internet access.</p>
+<section id="home" class="panel">
+<h1>QuizBurst Multiplayer</h1>
+<p>Choose a quiz, invite your friends and climb the leaderboard!</p>
+<button onclick="show('host')">🎮 Host a quiz</button>
+<button onclick="show('join')">🚀 Join with PIN</button>
 </section>
 
-<section id="hostSetup" class="card hidden">
-<h2>Create a lobby</h2>
-<input id="hostName" placeholder="Host name (optional)">
-<button onclick="startHost()">Create room</button>
+<section id="host" class="panel hidden">
+<h2>Choose your quiz</h2>
+<input id="hostName" placeholder="Host nickname">
+<div id="catalog"></div>
 <button onclick="show('home')">Back</button>
 </section>
 
-<section id="joinSetup" class="card hidden">
-<h2>Join a lobby</h2>
+<section id="join" class="panel hidden">
+<h2>Join a game</h2>
 <input id="playerName" placeholder="Nickname">
-<input id="roomPin" placeholder="6-digit room PIN" maxlength="6" inputmode="numeric">
+<input id="pinInput" placeholder="Six-digit PIN" maxlength="6" inputmode="numeric">
 <button onclick="joinRoom()">Join game</button>
 <button onclick="show('home')">Back</button>
 </section>
 
-<section id="lobby" class="card hidden">
-<h2>Game lobby</h2>
-<div class="muted">Share this PIN with your players</div>
-<div id="pinDisplay" class="bigpin">------</div>
-<p id="lobbyMessage">Waiting for players...</p>
+<section id="lobby" class="panel hidden">
+<h2 id="quizTitle">Lobby</h2>
+<p>Share this PIN with your players</p>
+<div id="pin" class="bigpin"></div>
+<p id="lobbyInfo">Waiting for players...</p>
 <ul id="players"></ul>
-
-<div id="editor">
-<hr>
-<h2>Question editor</h2>
-<input id="qText" placeholder="Write the question or clue">
-<label for="qType">Question style</label>
-<select id="qType" onchange="updateEditor()">
-<option value="default">Default — multiple choice</option>
-<option value="poker">Poker — playing cards</option>
-<option value="slider">Slider — guess a number</option>
-<option value="decode">Decode answer — unscramble letters</option>
-<option value="boolean">True or False</option>
-<option value="typed">Type answer</option>
-</select>
-<div id="choiceFields">
-<input id="opt0" placeholder="Answer A">
-<input id="opt1" placeholder="Answer B">
-<input id="opt2" placeholder="Answer C">
-<input id="opt3" placeholder="Answer D">
-<label>Correct answer</label>
-<select id="correct">
-<option value="0">A</option><option value="1">B</option>
-<option value="2">C</option><option value="3">D</option>
-</select>
-</div>
-<div id="numberFields" class="hidden">
-<input id="minVal" type="number" value="0" placeholder="Minimum">
-<input id="maxVal" type="number" value="100" placeholder="Maximum">
-<input id="correctNum" type="number" value="50" placeholder="Correct number">
-<input id="tolerance" type="number" min="0" value="0" placeholder="Allowed difference">
-</div>
-<div id="textFields" class="hidden">
-<input id="correctText" placeholder="Correct answer">
-</div>
-<div id="booleanFields" class="hidden">
-<label>Correct answer</label>
-<select id="boolCorrect">
-<option value="true">True</option>
-<option value="false">False</option>
-</select>
-</div>
-<label>Time limit (seconds)</label>
-<input id="qSeconds" type="number" min="5" max="120" value="20">
-<button onclick="addQuestion()">＋ Add question</button>
-<ol id="questionList"></ol>
-<button onclick="startGame()">▶ Start quiz</button>
-</div>
+<div id="hostStart"><button onclick="startGame()">▶ Start quiz</button></div>
 </section>
 
-<section id="game" class="card hidden">
-<div class="stat" id="roundCount">Question 1</div>
-<div class="stat" id="answeredCount">Answered: 0</div>
-<h2 id="questionDisplay"></h2>
-<div id="timer">20</div>
-<div id="answerArea"></div>
+<section id="game" class="panel hidden">
+<div id="round"></div>
+<h2 id="question"></h2>
+<div id="timer"></div>
+<div id="answers"></div>
 <div id="feedback"></div>
 <div id="hostControls" class="hidden">
 <hr>
 <button onclick="skipQuestion()">⏭ Skip question</button>
-<button id="nextButton" onclick="nextQuestion()">Next question ➜</button>
+<button onclick="nextQuestion()">Next question ➜</button>
 <button onclick="endGame()">End quiz</button>
 </div>
 </section>
 
-<section id="results" class="card hidden">
+<section id="results" class="panel hidden">
 <h1>🏆 Final leaderboard</h1>
-<div id="podium"></div>
+<h2 id="winner"></h2>
 <ol id="leaderboard"></ol>
 <button onclick="location.reload()">New game</button>
 </section>
@@ -147,324 +96,370 @@ input[type=range]{padding:0}
 
 <script>
 const $=id=>document.getElementById(id);
-let peer=null,hostConn=null,isHost=false,pin="",myName="";
-let connections={},players={},questions=[],scores={},streaks={};
-let current=-1,timeLeft=0,timerId=null,roundAnswers={};
-let roundFinished=false,gameStarted=false,answered=false;
+const Q=(question,options,correct)=>({question,options,correct});
+const maths=[
+Q("What is 7 × 8?",["54","56","64","48"],1),
+Q("What is 144 ÷ 12?",["10","11","12","14"],2),
+Q("What is 25% of 80?",["10","15","20","25"],2),
+Q("What is 3/4 as a decimal?",["0.25","0.5","0.75","1.25"],2),
+Q("What is -6 + 14?",["6","8","-8","20"],1),
+Q("Solve: x + 9 = 15",["4","5","6","7"],2),
+Q("A square has 5 cm sides. Its perimeter is?",["10 cm","15 cm","20 cm","25 cm"],2),
+Q("What is 2.5 + 1.75?",["3.25","4.25","4.5","3.75"],1),
+Q("What is 9 squared?",["18","72","81","99"],2),
+Q("What is 15% of 200?",["15","20","30","35"],2)
+];
+const english=[
+Q("Which word is spelled correctly?",["Definately","Definitely","Definitly","Definetely"],1),
+Q("Which is a noun?",["Quickly","Happiness","Blue","Under"],1),
+Q("Choose the correct sentence.",["Their going home.","There going home.","They're going home.","Theyre going home."],2),
+Q("A synonym for rapid is...",["Slow","Fast","Quiet","Small"],1),
+Q("The opposite of ancient is...",["Old","Historic","Modern","Past"],2),
+Q("Which word means the same as begin?",["Finish","Start","Stop","Wait"],1),
+Q("Which word sounds like sea?",["Say","See","Saw","Sew"],1),
+Q("Which punctuation ends a question?",["Full stop","Comma","Question mark","Colon"],2),
+Q("What is the plural of child?",["Childs","Childes","Children","Childrens"],2),
+Q("Which word is an adjective?",["Beautiful","Jump","Happily","Under"],0)
+];
+const random=[
+Q("How many players start for one football team?",["9","10","11","12"],2),
+Q("What part of a train runs on rails?",["Pantograph","Wheels","Horn","Mirror"],1),
+Q("Which planet is known as the Red Planet?",["Venus","Mars","Jupiter","Mercury"],1),
+Q("What is the capital of France?",["Rome","Madrid","Paris","Berlin"],2),
+Q("What is the largest living mammal?",["Elephant","Blue whale","Giraffe","Orca"],1),
+Q("Which gas do plants absorb?",["Oxygen","Helium","Carbon dioxide","Hydrogen"],2),
+Q("How many sides has a hexagon?",["5","6","7","8"],1),
+Q("Which ocean is the largest?",["Atlantic","Indian","Arctic","Pacific"],3),
+Q("Which device stores electrical energy?",["Battery","Speaker","Screen","Camera"],0),
+Q("What do bees collect from flowers?",["Sand","Nectar","Leaves","Bark"],1)
+];
 
-function show(id){
-  document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));
-  $(id).classList.remove("hidden");
+// 30 pre-made quizzes, with 10 questions in each quiz.
+const names=[
+["Maths","Arithmetic"],["Maths","Times Tables"],["Maths","Fractions"],
+["Maths","Decimals"],["Maths","Percentages"],["Maths","Negative Numbers"],
+["Maths","Algebra"],["Maths","Geometry"],["Maths","Measurement"],["Maths","Mixed Maths"],
+["English","Spelling"],["English","Grammar"],["English","Punctuation"],
+["English","Vocabulary"],["English","Synonyms"],["English","Antonyms"],
+["English","Homophones"],["English","Sentence Structure"],["English","Word Types"],["English","Mixed English"],
+["Random","Football (Soccer)"],["Random","Trains"],["Random","Science"],
+["Random","Geography"],["Random","History"],["Random","Animals"],
+["Random","Technology"],["Random","Space"],["Random","Food"],["Random","General Knowledge"]
+];
+
+// Specific questions for each subject area.
+const pools={
+"Arithmetic":[
+Q("36 + 27 = ?",["53","63","73","62"],1),Q("90 - 46 = ?",["44","54","46","34"],0),
+Q("8 × 7 = ?",["54","56","64","49"],1),Q("81 ÷ 9 = ?",["7","8","9","10"],2),
+Q("125 + 75 = ?",["175","190","200","225"],2),Q("12 × 12 = ?",["124","144","132","121"],1),
+Q("1000 - 375 = ?",["625","675","725","615"],0),Q("42 ÷ 6 = ?",["6","7","8","9"],1),
+Q("19 + 28 = ?",["37","47","49","57"],1),Q("15 × 4 = ?",["45","50","60","65"],2)],
+"Times Tables":[
+Q("6 × 7 = ?",["36","42","48","49"],1),Q("9 × 8 = ?",["63","72","81","64"],1),
+Q("12 × 6 = ?",["62","72","82","68"],1),Q("7 × 7 = ?",["42","49","56","54"],1),
+Q("11 × 9 = ?",["89","99","108","101"],1),Q("8 × 4 = ?",["24","28","32","36"],2),
+Q("3 × 12 = ?",["24","30","36","42"],2),Q("5 × 9 = ?",["40","45","50","55"],1),
+Q("4 × 7 = ?",["24","28","32","21"],1),Q("10 × 12 = ?",["100","110","120","130"],2)],
+"Fractions":[
+Q("Half of 18 is...",["6","8","9","12"],2),Q("Which equals one half?",["2/3","3/6","3/4","1/3"],1),
+Q("One quarter of 20 is...",["4","5","6","10"],1),Q("Which fraction is largest?",["1/3","1/2","1/4","1/5"],1),
+Q("Simplify 2/4.",["1/4","1/2","2/3","3/4"],1),Q("3/5 of 20 is...",["8","10","12","15"],2),
+Q("1/2 + 1/4 = ?",["1/4","2/4","3/4","1"],2),Q("How many thirds make a whole?",["2","3","4","6"],1),
+Q("3/4 of 12 is...",["6","8","9","10"],2),Q("Which fraction equals one whole?",["2/3","4/4","3/5","1/2"],1)],
+"Decimals":[
+Q("0.5 + 0.25 = ?",["0.30","0.65","0.75","1.25"],2),Q("1.2 + 0.8 = ?",["1.8","2","2.2","2.8"],1),
+Q("Which is greatest?",["0.09","0.9","0.19","0.8"],1),Q("3.5 - 1.2 = ?",["2.1","2.3","2.7","3.3"],1),
+Q("0.25 as a percentage is...",["2.5%","25%","50%","75%"],1),Q("4.75 rounded to a whole number is...",["4","4.5","5","6"],2),
+Q("2.5 × 2 = ?",["4","4.5","5","5.5"],2),Q("0.1 as a fraction is...",["1/2","1/5","1/10","1/100"],2),
+Q("6.4 + 1.6 = ?",["7","7.5","8","8.5"],2),Q("5 - 2.75 = ?",["2.15","2.25","2.35","3.25"],1)],
+"Percentages":[
+Q("10% of 90 is...",["9","10","18","19"],0),Q("50% of 64 is...",["16","24","32","48"],2),
+Q("20% of 150 is...",["15","20","30","35"],2),Q("75% of 40 is...",["20","25","30","35"],2),
+Q("1% of 500 is...",["1","5","10","50"],1),Q("£20 reduced by £5: discount percentage?",["10%","20%","25%","50%"],2),
+Q("30% of 200 is...",["30","50","60","70"],2),Q("5% of 80 is...",["2","4","8","10"],1),
+Q("100% of 37 is...",["0","3.7","37","370"],2),Q("25% of 120 is...",["20","25","30","40"],2)],
+"Negative Numbers":[
+Q("-3 + 8 = ?",["-11","-5","5","11"],2),Q("-4 - 6 = ?",["-10","-2","2","10"],0),
+Q("-5 × 3 = ?",["-15","-8","8","15"],0),Q("Which is smallest?",["-2","0","-8","3"],2),
+Q("7 + (-9) = ?",["-16","-2","2","16"],1),Q("-12 ÷ 3 = ?",["-4","-3","3","4"],0),
+Q("-6 + (-2) = ?",["-8","-4","4","8"],0),Q("5 - 11 = ?",["-6","-5","6","16"],0),
+Q("-2 × -4 = ?",["-8","-6","6","8"],3),Q("-10 + 15 = ?",["-25","-5","5","25"],2)],
+"Algebra":[
+Q("x + 4 = 10. Find x.",["4","5","6","14"],2),Q("2x = 18. Find x.",["6","8","9","16"],2),
+Q("y - 7 = 5. Find y.",["2","10","12","35"],2),Q("Simplify 3a + 2a.",["5","5a","6a","a5"],1),
+Q("If x = 3, then 2x + 1 = ?",["5","6","7","8"],2),Q("x/4 = 3. Find x.",["7","12","16","24"],1),
+Q("Simplify 8b - 3b.",["5","5b","11b","24b"],1),Q("x + 12 = 20. Find x.",["6","8","12","32"],1),
+Q("3x = 21. Find x.",["6","7","8","9"],1),Q("If m = 5, then 4m = ?",["9","15","20","25"],2)],
+"Geometry":[
+Q("Degrees in a right angle?",["45","90","180","360"],1),Q("Sides in a pentagon?",["4","5","6","8"],1),
+Q("Angles in a triangle total?",["90°","180°","270°","360°"],1),Q("Four equal sides and four right angles?",["Rectangle","Square","Circle","Trapezium"],1),
+Q("Faces on a cube?",["4","6","8","12"],1),Q("Perimeter of a 4 cm square?",["8 cm","12 cm","16 cm","20 cm"],2),
+Q("Sides in an octagon?",["6","7","8","10"],2),Q("Area of a 5 by 3 rectangle?",["8","15","16","30"],1),
+Q("Degrees in a straight line?",["90°","120°","180°","360°"],2),Q("A 3D ball shape is a...",["Cone","Sphere","Cylinder","Cube"],1)],
+"Measurement":[
+Q("Centimetres in a metre?",["10","100","1000","10000"],1),Q("Grams in a kilogram?",["10","100","1000","10000"],2),
+Q("Minutes in 2 hours?",["60","90","120","180"],2),Q("Millilitres in a litre?",["100","500","1000","1500"],2),
+Q("Metres in 3 kilometres?",["300","3000","30000","30"],1),Q("Days in a week?",["5","6","7","8"],2),
+Q("Seconds in one minute?",["30","50","60","100"],2),Q("Best unit for a person's mass?",["Litres","Kilograms","Metres","Seconds"],1),
+Q("Millimetres in a centimetre?",["1","10","100","1000"],1),Q("Hours in half a day?",["6","10","12","24"],2)],
+"Football (Soccer)":[
+Q("Players starting for one team?",["9","10","11","12"],2),Q("Normal match length excluding added time?",["60 min","80 min","90 min","100 min"],2),
+Q("Three goals by one player is a...",["Hat-trick","Triple play","Treble kick","Three-peat"],0),Q("Who may handle the ball in their own penalty area?",["Any defender","Goalkeeper","Captain only","Any player"],1),
+Q("Which card means a player is sent off?",["Blue","Yellow","Red","Green"],2),Q("A qualifying foul inside the penalty area can result in a...",["Corner","Penalty kick","Throw-in","Goal kick"],1),
+Q("What restarts play after the ball crosses the touchline?",["Throw-in","Corner","Kick-off","Penalty"],0),Q("What is a score of 2–1 for the winners?",["Draw","One-goal win","Two-goal win","Shoot-out"],1),
+Q("Who enforces the Laws of the Game?",["Coach","Referee","Captain","Commentator"],1),Q("What starts each half?",["Kick-off","Throw-in","Corner","Goal kick"],0)],
+"Trains":[
+Q("What do railway signals control?",["Train movements","Ticket prices","Meals","Platform paint"],0),Q("The driver's compartment is the...",["Cab","Saloon","Vestibule","Bogie"],0),
+Q("A pantograph collects...",["Rainwater","Electricity from overhead wires","Brake dust","Diesel"],1),Q("A platform is for...",["Boarding and leaving trains","Fuel storage","Signal repair","Road traffic"],0),
+Q("A timetable shows...",["Planned times and stops","Weather only","Seat colours","Track age"],0),Q("A locomotive is...",["A powered rail vehicle","A station building","A ticket machine","A signal"],0),
+Q("A level crossing is where...",["Road and railway cross","Trains change engines","Tracks end","Passengers buy tickets"],0),Q("Track gauge is the...",["Distance between rails","Train length","Wheel diameter","Train weight"],0),
+Q("A carriage is...",["A passenger vehicle","A signal box","A rail joint","A clock"],0),Q("A red railway signal generally means...",["Proceed","Stop","Change seats","Open windows"],1)],
+"Science":[
+Q("H2O is...",["Oxygen","Water","Hydrogen","Salt"],1),Q("What pulls objects towards Earth?",["Gravity","Friction","Sound","Light"],0),
+Q("Which organ pumps blood?",["Lungs","Heart","Liver","Stomach"],1),Q("Water boils at sea level at about...",["0°C","50°C","100°C","200°C"],2),
+Q("Which gas is needed for human respiration?",["Oxygen","Carbon dioxide","Helium","Neon"],0),Q("The centre of an atom is its...",["Nucleus","Cell wall","Orbit","Shell"],0),
+Q("Which is a good electrical conductor?",["Copper","Rubber","Dry wood","Plastic"],0),Q("Plants make food using light by...",["Photosynthesis","Evaporation","Digestion","Condensation"],0),
+Q("What is the closest star to Earth?",["Sirius","The Sun","Polaris","Proxima Centauri"],1),Q("Which state has a fixed shape?",["Gas","Liquid","Solid","Vapour"],2)],
+"Geography":[
+Q("Capital of Japan?",["Seoul","Tokyo","Beijing","Bangkok"],1),Q("Largest continent by area?",["Africa","Europe","Asia","South America"],2),
+Q("Which river flows through Egypt?",["Amazon","Nile","Thames","Danube"],1),Q("Madrid is in...",["Portugal","Spain","Italy","Greece"],1),
+Q("Capital of the UK?",["Manchester","Edinburgh","London","Cardiff"],2),Q("Largest ocean?",["Atlantic","Pacific","Indian","Arctic"],1),
+Q("The Sahara is in...",["Asia","Africa","Australia","Europe"],1),Q("A map key explains...",["Symbols","Time","Temperature only","The author"],0),
+Q("Which country is shaped like a boot?",["Italy","Norway","India","Chile"],0),Q("A group of islands is an...",["Archipelago","Peninsula","Valley","Plateau"],0)],
+"History":[
+Q("Who built the pyramids at Giza?",["Ancient Egyptians","Romans","Vikings","Aztecs"],0),Q("World War II ended in...",["1918","1939","1945","1955"],2),
+Q("First person to walk on the Moon?",["Yuri Gagarin","Neil Armstrong","Buzz Aldrin","John Glenn"],1),Q("Which wall fell in 1989?",["Hadrian's Wall","Berlin Wall","Great Wall","Antonine Wall"],1),
+Q("Which ship sank in 1912 after hitting an iceberg?",["Lusitania","Titanic","Endeavour","Mayflower"],1),Q("First Tudor monarch of England?",["Henry VII","Henry VIII","Elizabeth I","Richard III"],0),
+Q("The Roman Empire was centred on...",["Athens","Rome","Carthage","Alexandria"],1),Q("Which document was sealed in 1215?",["Magna Carta","Domesday Book","Bill of Rights","Act of Union"],0),
+Q("Machu Picchu was built by the...",["Maya","Inca","Romans","Greeks"],1),Q("The Silk Road linked trade between...",["East and West","North and South only","Two islands","Only Britain and France"],0)],
+"Animals":[
+Q("Fastest land animal?",["Lion","Cheetah","Horse","Leopard"],1),Q("A baby frog is a...",["Cub","Tadpole","Calf","Chick"],1),
+Q("Which mammal lays eggs?",["Platypus","Dolphin","Bat","Tiger"],0),Q("How many legs does a spider have?",["6","8","10","12"],1),
+Q("Pandas mainly eat...",["Bamboo","Fish","Insects","Bark only"],0),Q("A group of wolves is a...",["Pack","Flock","School","Colony"],0),
+Q("Which animal has a trunk?",["Hippo","Elephant","Rhino","Tapir"],1),Q("Largest living bird?",["Eagle","Ostrich","Penguin","Albatross"],1),
+Q("Which sea animal has eight arms?",["Shark","Octopus","Dolphin","Seal"],1),Q("Herbivores eat...",["Plants","Meat only","Stone","Insects only"],0)],
+"Technology":[
+Q("What does CPU stand for?",["Central Processing Unit","Computer Power Utility","Core Program Upload","Central Print Unit"],0),Q("Which device moves a computer pointer?",["Mouse","Router","Printer","Speaker"],0),
+Q("Wi-Fi provides...",["Wireless networking","Electricity","Paper","GPS only"],0),Q("Which is a web browser?",["Firefox","Excel","Paint","Calculator"],0),
+Q("USB commonly connects...",["Devices and accessories","Only TVs","Train tracks","Water pipes"],0),Q("RAM is...",["Working memory","Paper storage","Screen brightness","Internet access"],0),
+Q("Which is an input device?",["Keyboard","Monitor","Speaker","Projector"],0),Q("Which password is strongest?",["A long unique password","Your first name","123456","password"],0),
+Q("GPS helps determine...",["Location","Blood type","Battery chemistry","Screen size"],0),Q("Software means...",["Programs and instructions","Computer casing","Power cable","Cooling fan"],0)],
+"Space":[
+Q("Closest planet to the Sun?",["Venus","Mercury","Earth","Mars"],1),Q("Largest planet in our Solar System?",["Earth","Saturn","Jupiter","Neptune"],2),
+Q("Earth's natural satellite?",["Moon","Mars","Sun","Europa"],0),Q("Our Solar System is in the...",["Andromeda","Milky Way","Whirlpool","Sombrero"],1),
+Q("What causes day and night?",["Earth's rotation","Earth's orbit only","Moon's orbit","Sun switching off"],0),Q("A light-year measures...",["Distance","Time","Brightness","Temperature"],0),
+Q("Which planet is famous for its rings?",["Mercury","Saturn","Mars","Venus"],1),Q("Stars are powered mainly by...",["Nuclear fusion","Coal","Wind","Batteries"],0),
+Q("Comets often contain...",["Ice, dust and rock","Iron only","Liquid water only","Plastic"],0),Q("Astronauts wear a...",["Spacesuit","Raincoat","Life jacket only","Wool coat"],0)],
+"Food":[
+Q("Which fruit is used in guacamole?",["Avocado","Apple","Pear","Peach"],0),Q("What helps bread dough rise?",["Yeast","Salt only","Oil","Vinegar only"],0),
+Q("Which vitamin is associated with citrus fruit?",["Vitamin C","Vitamin D only","Vitamin B12 only","Vitamin K only"],0),Q("Cheese is made from...",["Milk","Rice","Bread","Pasta"],0),
+Q("Which is a legume?",["Lentil","Apple","Potato","Lettuce"],0),Q("Risotto is usually made with...",["Rice","Oats","Rye","Cornmeal"],0),
+Q("Which orange vegetable contains beta-carotene?",["Carrot","Cucumber","Cauliflower","Celery"],0),Q("Which dessert is made by freezing churned cream?",["Ice cream","Toast","Soup","Porridge"],0),
+Q("Which herb is often used in pesto?",["Basil","Mint only","Dill only","Sage only"],0),Q("What is essential for a basic omelette?",["Eggs","Flour only","Rice","Gelatine"],0)],
+"General Knowledge":random
+};
+
+// Fill the remaining named quiz titles with topic-appropriate ten-question sets.
+// This keeps the catalogue complete even where a subject has overlapping skills.
+const poolsFor={
+"Mixed Maths":maths,"Mixed English":english,"Spelling":english,"Grammar":english,
+"Punctuation":english,"Vocabulary":english,"Synonyms":english,"Antonyms":english,
+"Homophones":english,"Sentence Structure":english,"Word Types":english
+};
+const aliases={
+"Arithmetic":"Arithmetic","Times Tables":"Times Tables","Fractions":"Fractions",
+"Decimals":"Decimals","Percentages":"Percentages","Negative Numbers":"Negative Numbers",
+"Algebra":"Algebra","Geometry":"Geometry","Measurement":"Measurement",
+"Mixed Maths":"Mixed Maths","Football (Soccer)":"Football (Soccer)","Trains":"Trains",
+"Science":"Science","Geography":"Geography","History":"History","Animals":"Animals",
+"Technology":"Technology","Space":"Space","Food":"Food","General Knowledge":"General Knowledge"
+};
+const quizzes=names.map((entry,id)=>{
+ let category=entry[0],name=entry[1];
+ let bank=poolsFor[name]||pools[name]||
+   (category==="Maths"?maths:category==="English"?english:random);
+ return {id,category,name,questions:bank.map(q=>({question:q.question,options:q.options.slice(),correct:q.correct,seconds:20}))};
+});
+
+let peer=null,hostConn=null,isHost=false,pin="",myName="",selected=null;
+let connections={},players={},scores={},streaks={},current=-1,remaining=20,timer=null,answers={},roundDone=false,gameStarted=false;
+
+function show(id){document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));$(id).classList.remove("hidden")}
+function status(t){$("status").textContent=t}
+function send(c,m){if(c&&c.open)c.send(m)}
+function broadcast(m){Object.values(connections).forEach(c=>send(c,m))}
+function makeBoard(){return Object.values(players).map(p=>({id:p.id,name:p.name,score:scores[p.id]||0,streak:streaks[p.id]||0})).sort((a,b)=>b.score-a.score)}
+function renderCatalog(){
+ const root=$("catalog");root.innerHTML="";
+ ["Maths","English","Random"].forEach(category=>{
+  const h=document.createElement("h2");h.textContent=category;root.appendChild(h);
+  h.style.gridColumn="1/-1";
+  quizzes.filter(q=>q.category===category).forEach(q=>{
+   const card=document.createElement("div");card.className="quiz";
+   const title=document.createElement("h3");title.textContent=q.name;
+   const desc=document.createElement("p");desc.className="muted";desc.textContent="10 questions";
+   const btn=document.createElement("button");btn.textContent="Host this quiz";btn.onclick=()=>createRoom(q.id);
+   card.append(title,desc,btn);root.appendChild(card);
+  });
+ });
 }
-function status(s){$("status").textContent=s}
-function safe(s){return String(s??"")}
-function clean(s){return safe(s).trim().toLocaleLowerCase().replace(/\s+/g," ")}
-function send(conn,msg){if(conn&&conn.open)conn.send(msg)}
-function broadcast(msg){Object.values(connections).forEach(c=>send(c,msg))}
-function pinId(p){return "quizburst-"+p}
-function startHost(){
-  if(!window.Peer){status("PeerJS failed to load. Check your internet.");return}
-  isHost=true;myName=$("hostName").value.trim()||"Host";
-  pin=String(Math.floor(100000+Math.random()*900000));
-  status("Creating room...");
-  peer=new Peer(pinId(pin));
-  peer.on("open",()=>{
-    players={};scores={};streaks={};questions=[];current=-1;gameStarted=false;
-    $("pinDisplay").textContent=pin;
-    $("editor").classList.remove("hidden");
-    $("lobbyMessage").textContent="Share the PIN with your players.";
-    $("questionList").innerHTML="";
-    show("lobby");status("Hosting room "+pin);
+function createRoom(id){
+ if(!window.Peer){status("PeerJS could not load. Check your internet.");return}
+ selected=quizzes[id];isHost=true;myName=$("hostName").value.trim()||"Host";
+ pin=String(Math.floor(100000+Math.random()*900000));status("Creating room...");
+ peer=new Peer("quizburst-"+pin);
+ peer.on("open",()=>{
+  players={};scores={};streaks={};connections={};current=-1;gameStarted=false;
+  $("quizTitle").textContent=selected.name;$("pin").textContent=pin;
+  $("lobbyInfo").textContent="10 questions ready. Share the PIN!";
+  $("hostStart").classList.remove("hidden");updateLobby();show("lobby");status("Hosting "+selected.name);
+ });
+ peer.on("connection",c=>{
+  c.on("open",()=>{
+   if(gameStarted){send(c,{type:"error",message:"This quiz has already started."});c.close();return}
+   connections[c.peer]=c;
+   c.on("data",m=>hostMessage(c.peer,m));
+   c.on("close",()=>{delete connections[c.peer];delete players[c.peer];delete scores[c.peer];delete streaks[c.peer];updateLobby();broadcast({type:"roster",players:Object.values(players)})});
   });
-  peer.on("connection",conn=>{
-    conn.on("open",()=>{
-      if(gameStarted){send(conn,{type:"error",message:"The quiz has already started."});conn.close();return}
-      connections[conn.peer]=conn;
-      conn.on("data",msg=>hostMessage(conn.peer,msg));
-      conn.on("close",()=>{
-        delete connections[conn.peer];delete players[conn.peer];
-        updateLobby();broadcast({type:"roster",players:Object.values(players)});
-        updateBoard();
-      });
-      send(conn,{type:"hello",pin});
-    });
-  });
-  peer.on("error",e=>status("PeerJS error: "+e.type+". Try another PIN or refresh."));
+ });
+ peer.on("error",e=>status("PeerJS error: "+e.type+". Try again with a new room."));
 }
 function joinRoom(){
-  if(!window.Peer){status("PeerJS failed to load. Check your internet.");return}
-  myName=$("playerName").value.trim()||"Player";
-  pin=$("roomPin").value.trim();
-  if(!/^\d{6}$/.test(pin)){alert("Enter the six-digit PIN.");return}
-  status("Connecting to host...");
-  peer=new Peer();
-  peer.on("open",()=>{
-    hostConn=peer.connect(pinId(pin),{reliable:true});
-    hostConn.on("open",()=>{
-      send(hostConn,{type:"join",name:myName});
-      $("pinDisplay").textContent=pin;
-      $("editor").classList.add("hidden");
-      show("lobby");
-      $("lobbyMessage").textContent="Connected! Waiting for the host.";
-      status("Joined room "+pin);
-    });
-    hostConn.on("data",playerMessage);
-    hostConn.on("close",()=>status("Connection to host closed."));
-    hostConn.on("error",()=>status("Couldn't reach host."));
-  });
-  peer.on("error",e=>status("Connection error: "+e.type+". Check the PIN."));
+ if(!window.Peer){status("PeerJS could not load.");return}
+ myName=$("playerName").value.trim()||"Player";pin=$("pinInput").value.trim();
+ if(!/^\d{6}$/.test(pin)){alert("Enter the six-digit PIN.");return}
+ status("Connecting to host...");
+ peer=new Peer();
+ peer.on("open",()=>{
+  hostConn=peer.connect("quizburst-"+pin,{reliable:true});
+  hostConn.on("open",()=>send(hostConn,{type:"join",name:myName}));
+  hostConn.on("data",playerMessage);
+  hostConn.on("error",()=>status("Connection error. Check the PIN."));
+  hostConn.on("close",()=>status("Connection to host closed."));
+ });
+ peer.on("error",e=>status("Could not connect: "+e.type));
 }
 function hostMessage(id,m){
-  if(!m||typeof m!=="object")return;
-  if(m.type==="join"&&!gameStarted){
-    players[id]={id,name:safe(m.name).trim().slice(0,24)||"Player"};
-    scores[id]=0;streaks[id]=0;
-    updateLobby();broadcast({type:"roster",players:Object.values(players)});
-  }
-  if(m.type==="answer"&&gameStarted&&m.round===current&&!roundFinished&&!Object.hasOwn(roundAnswers,id)){
-    const q=questions[current];if(!q)return;
-    const ok=checkAnswer(q,m.value);
-    roundAnswers[id]={correct:ok,value:m.value};
-    if(ok){
-      streaks[id]=(streaks[id]||0)+1;
-      scores[id]=(scores[id]||0)+Math.max(100,Math.round(500+timeLeft*25));
-      if(streaks[id]>=3)scores[id]+=100;
-    }else streaks[id]=0;
-    send(connections[id],{type:"answerResult",correct:ok,score:scores[id],streak:streaks[id]});
-    updateAnswered();updateBoard();
-    broadcast({type:"board",board:getBoard()});
-    if(Object.keys(roundAnswers).length>=Object.keys(players).length)finishRound();
-  }
+ if(!m||typeof m!=="object")return;
+ if(m.type==="join"&&!gameStarted){
+  players[id]={id,name:String(m.name||"Player").slice(0,24)};scores[id]=0;streaks[id]=0;
+  send(connections[id],{type:"roster",players:Object.values(players)});
+  updateLobby();broadcast({type:"roster",players:Object.values(players)});
+ }
+ if(m.type==="answer"&&gameStarted&&!roundDone&&m.round===current&&!Object.hasOwn(answers,id)){
+  const q=selected.questions[current],correct=Number(m.value)===q.correct;
+  answers[id]={correct};
+  if(correct){streaks[id]=(streaks[id]||0)+1;scores[id]=(scores[id]||0)+Math.max(100,500+remaining*25)+(streaks[id]>=3?100:0)}
+  else streaks[id]=0;
+  send(connections[id],{type:"result",correct,score:scores[id]});
+  updateAnswerCount();updateBoard();broadcast({type:"board",board:makeBoard()});
+  if(Object.keys(answers).length>=Object.keys(players).length)finishRound();
+ }
 }
 function updateLobby(){
-  $("players").innerHTML="";
-  Object.values(players).forEach(p=>{
-    const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li);
-  });
-  $("lobbyMessage").textContent=Object.keys(players).length+" player(s) connected";
+ $("players").innerHTML="";
+ Object.values(players).forEach(p=>{const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li)});
+ $("lobbyInfo").textContent=Object.keys(players).length+" player(s) connected";
 }
-function updateEditor(){
-  const t=$("qType").value;
-  $("choiceFields").classList.toggle("hidden",!["default","poker"].includes(t));
-  $("numberFields").classList.toggle("hidden",t!=="slider");
-  $("textFields").classList.toggle("hidden",!["decode","typed"].includes(t));
-  $("booleanFields").classList.toggle("hidden",t!=="boolean");
-}
-function addQuestion(){
-  const type=$("qType").value,text=$("qText").value.trim();
-  if(!text){alert("Write a question first.");return}
-  const q={type,text,seconds:Math.max(5,Math.min(120,Number($("qSeconds").value)||20))};
-  if(["default","poker"].includes(type)){
-    q.options=[0,1,2,3].map(i=>$("opt"+i).value.trim());
-    q.correct=Number($("correct").value);
-    if(q.options.some(x=>!x)){alert("Fill in all four options.");return}
-  }
-  if(type==="slider"){
-    q.min=Number($("minVal").value);q.max=Number($("maxVal").value);
-    q.correct=Number($("correctNum").value);q.tolerance=Math.max(0,Number($("tolerance").value)||0);
-    if(q.max<=q.min||q.correct<q.min||q.correct>q.max){alert("Check the slider range and correct answer.");return}
-  }
-  if(["decode","typed"].includes(type)){
-    q.correctText=$("correctText").value.trim();
-    if(!q.correctText){alert("Enter the correct answer.");return}
-    if(type==="decode")q.scrambled=scramble(q.correctText);
-  }
-  if(type==="boolean")q.correctText=$("boolCorrect").value;
-  questions.push(q);
-  const li=document.createElement("li");
-  li.textContent=questions.length+". "+text+" ["+type+"]";
-  $("questionList").appendChild(li);
-  $("qText").value="";
-  [0,1,2,3].forEach(i=>$("opt"+i).value="");
-  $("correctText").value="";
-}
-function scramble(s){
-  const letters=s.split("");
-  if(letters.length<3)return letters.reverse().join("");
-  for(let i=letters.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[letters[i],letters[j]]=[letters[j],letters[i]]}
-  if(letters.join("").toLowerCase()===s.toLowerCase())letters.reverse();
-  return letters.join("");
-}
-function startGame(){
-  if(!questions.length){alert("Add at least one question.");return}
-  gameStarted=true;current=-1;nextQuestion();
-}
-function publicQuestion(q){
-  const o={type:q.type,text:q.text,seconds:q.seconds,min:q.min,max:q.max,
-    options:q.options,scrambled:q.scrambled,index:current,total:questions.length};
-  return o;
-}
+function startGame(){if(!isHost||!selected)return;gameStarted=true;current=-1;nextQuestion()}
 function nextQuestion(){
-  clearInterval(timerId);
-  if(!isHost)return;
-  if(current>=0&&!roundFinished&&!confirm("Move on before everyone has answered?"))return;
-  current++;
-  if(current>=questions.length){endGame();return}
-  roundAnswers={};roundFinished=false;timeLeft=questions[current].seconds;
-  $("hostControls").classList.remove("hidden");
-  $("nextButton").disabled=false;
-  $("feedback").textContent="";
-  $("roundCount").textContent="Question "+(current+1)+" / "+questions.length;
-  renderQuestion(questions[current],true);
-  broadcast({type:"question",question:publicQuestion(questions[current])});
-  updateAnswered();timerId=setInterval(tick,1000);
+ if(!isHost)return;
+ clearInterval(timer);
+ if(current>=0&&!roundDone&&!confirm("Move on before everyone has answered?"))return;
+ current++;
+ if(current>=selected.questions.length){endGame();return}
+ answers={};roundDone=false;remaining=selected.questions[current].seconds;
+ $("round").textContent="Question "+(current+1)+" / "+selected.questions.length;
+ $("feedback").textContent="";$("hostControls").classList.remove("hidden");
+ $("hostControls").querySelectorAll("button").forEach(b=>b.disabled=false);
+ show("game");renderQuestion(selected.questions[current],true);
+ broadcast({type:"question",index:current,total:selected.questions.length,q:selected.questions[current]});
+ updateAnswerCount();timer=setInterval(tick,1000);
 }
 function renderQuestion(q,host){
-  $("questionDisplay").textContent=q.text;
-  $("answerArea").innerHTML="";
-  $("timer").textContent=timeLeft+" seconds";
-  if(q.type==="default"||q.type==="poker"){
-    const grid=document.createElement("div");grid.className="grid";
-    q.options.forEach((opt,i)=>{
-      const b=document.createElement("button");
-      b.className=q.type==="poker"?"poker":"answer";
-      b.textContent=q.type==="poker"?["🂡","🂱","🃁","🃑"][i]+"  "+opt: String.fromCharCode(65+i)+". "+opt;
-      b.onclick=()=>submitAnswer(i);
-      grid.appendChild(b);
-    });
-    $("answerArea").appendChild(grid);
-  }else if(q.type==="slider"){
-    const r=document.createElement("input");r.type="range";r.min=q.min;r.max=q.max;r.value=(q.min+q.max)/2;r.id="rangeInput";
-    r.oninput=()=>$("rangeValue").textContent=r.value;
-    const val=document.createElement("div");val.id="rangeValue";val.textContent=r.value;
-    const b=document.createElement("button");b.textContent="Lock in answer";b.onclick=()=>submitAnswer(Number(r.value));
-    $("answerArea").append(r,val,b);
-  }else if(q.type==="decode"){
-    const p=document.createElement("h2");p.textContent=q.scrambled||"Decode the clue";
-    const input=document.createElement("input");input.id="typedAnswer";input.placeholder="Unscramble the answer";
-    const b=document.createElement("button");b.textContent="Submit answer";b.onclick=()=>submitAnswer(input.value);
-    $("answerArea").append(p,input,b);
-  }else if(q.type==="typed"){
-    const input=document.createElement("input");input.id="typedAnswer";input.placeholder="Type your answer";
-    const b=document.createElement("button");b.textContent="Submit answer";b.onclick=()=>submitAnswer(input.value);
-    $("answerArea").append(input,b);
-  }else if(q.type==="boolean"){
-    const grid=document.createElement("div");grid.className="grid";
-    ["true","false"].forEach(v=>{
-      const b=document.createElement("button");b.className="answer";
-      b.textContent=v==="true"?"✅ TRUE":"❌ FALSE";b.onclick=()=>submitAnswer(v);
-      grid.appendChild(b);
-    });
-    $("answerArea").appendChild(grid);
-  }
-  if(host){
-    $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
-    $("feedback").textContent="Host controls the round. Players answer on their devices.";
-  }else{
-    $("feedback").textContent="Choose your answer!";
-  }
+ $("question").textContent=q.question;$("timer").textContent=remaining+" seconds";$("answers").innerHTML="";
+ const grid=document.createElement("div");grid.className="grid";
+ q.options.forEach((opt,i)=>{
+  const b=document.createElement("button");b.className="answer";
+  b.textContent=["🔺 ","🔷 ","🟡 ","🟢 "][i]+opt;
+  b.onclick=()=>submit(i);grid.appendChild(b);
+ });
+ $("answers").appendChild(grid);
+ if(host){$("answers").querySelectorAll("button").forEach(b=>b.disabled=true);$("feedback").textContent="Host controls the game. Players answer on their devices."}
+ else $("feedback").textContent="Choose your answer!";
 }
-function submitAnswer(value){
-  if(isHost||answered||roundFinished)return;
-  answered=true;
-  $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
-  send(hostConn,{type:"answer",round:current,value});
-  $("feedback").textContent="Answer locked in!";
-}
-function checkAnswer(q,value){
-  if(q.type==="default"||q.type==="poker")return Number(value)===q.correct;
-  if(q.type==="slider")return Math.abs(Number(value)-q.correct)<=q.tolerance;
-  if(q.type==="boolean")return String(value)===q.correctText;
-  return clean(value)===clean(q.correctText);
+let submitted=false;
+function submit(index){
+ if(isHost||submitted||roundDone)return;
+ submitted=true;$("answers").querySelectorAll("button").forEach(b=>b.disabled=true);
+ send(hostConn,{type:"answer",round:current,value:index});
+ $("feedback").textContent="Answer locked in!";
 }
 function tick(){
-  if(roundFinished)return;
-  timeLeft--;broadcast({type:"tick",time:timeLeft});
-  $("timer").textContent=timeLeft+" seconds";
-  if(timeLeft<=0)finishRound();
+ if(roundDone)return;
+ remaining--; $("timer").textContent=remaining+" seconds";broadcast({type:"tick",remaining});
+ if(remaining<=0)finishRound();
 }
-function updateAnswered(){
-  $("answeredCount").textContent="Answered: "+Object.keys(roundAnswers).length+" / "+Object.keys(players).length;
-}
+function updateAnswerCount(){$("round").textContent="Question "+(current+1)+" / "+selected.questions.length+" • Answered "+Object.keys(answers).length+"/"+Object.keys(players).length}
 function finishRound(){
-  if(!isHost||roundFinished)return;
-  roundFinished=true;clearInterval(timerId);
-  const q=questions[current];
-  $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
-  $("hostControls").classList.remove("hidden");
-  $("nextButton").disabled=false;
-  let correctLabel="";
-  if(["default","poker"].includes(q.type))correctLabel=q.options[q.correct];
-  else if(q.type==="slider")correctLabel=String(q.correct);
-  else if(q.type==="boolean")correctLabel=q.correctText.toUpperCase();
-  else correctLabel=q.correctText;
-  const correctCount=Object.values(roundAnswers).filter(a=>a.correct).length;
-  $("feedback").textContent="Correct answer: "+correctLabel+" • "+correctCount+" correct";
-  broadcast({type:"roundEnd",correctLabel,correctCount,board:getBoard()});
-  updateBoard();
+ if(!isHost||roundDone)return;
+ roundDone=true;clearInterval(timer);
+ const q=selected.questions[current],count=Object.values(answers).filter(a=>a.correct).length;
+ const correct=q.options[q.correct];
+ $("answers").querySelectorAll("button").forEach(b=>b.disabled=true);
+ $("feedback").textContent="Correct answer: "+correct+" • "+count+" correct";
+ broadcast({type:"roundEnd",correct,count,board:makeBoard()});updateBoard();
 }
 function skipQuestion(){
-  if(!isHost)return;
-  clearInterval(timerId);
-  roundFinished=true;
-  broadcast({type:"roundEnd",correctLabel:"Question skipped",correctCount:0,board:getBoard()});
-  nextQuestion();
-}
-function getBoard(){
-  return Object.values(players).map(p=>({id:p.id,name:p.name,score:scores[p.id]||0,streak:streaks[p.id]||0}))
-    .sort((a,b)=>b.score-a.score);
+ if(!isHost)return;
+ clearInterval(timer);roundDone=true;
+ broadcast({type:"roundEnd",correct:"Question skipped",count:0,board:makeBoard()});
+ nextQuestion();
 }
 function updateBoard(){
-  const board=getBoard();
-  $("leaderboard").innerHTML="";
-  board.forEach((p,i)=>{
-    const li=document.createElement("li");
-    const left=document.createElement("span");
-    left.textContent=["🥇","🥈","🥉"][i]||("#"+(i+1))+" "+p.name;
-    const right=document.createElement("span");
-    right.textContent=p.score+" pts"+(p.streak>=3?" 🔥":"");
-    li.append(left,right);$("leaderboard").appendChild(li);
-  });
-  if(board.length){
-    $("podium").textContent="Leading: "+board[0].name+" — "+board[0].score+" points";
-  }else $("podium").textContent="No players joined.";
+ const b=makeBoard();$("leaderboard").innerHTML="";
+ b.forEach((p,i)=>{
+  const li=document.createElement("li"),left=document.createElement("span"),right=document.createElement("span");
+  left.textContent=(["🥇","🥈","🥉"][i]||"#"+(i+1))+" "+p.name;
+  right.textContent=p.score+" pts"+(p.streak>=3?" 🔥":"");
+  li.append(left,right);$("leaderboard").appendChild(li);
+ });
+ $("winner").textContent=b.length?"Leading: "+b[0].name+" — "+b[0].score+" points":"No players joined.";
 }
 function endGame(){
-  clearInterval(timerId);
-  if(isHost)broadcast({type:"gameOver",board:getBoard()});
-  show("results");updateBoard();status("Quiz finished!");
+ clearInterval(timer);if(isHost)broadcast({type:"gameOver",board:makeBoard()});
+ show("results");updateBoard();status("Quiz finished!");
 }
 function playerMessage(m){
-  if(!m||typeof m!=="object")return;
-  if(m.type==="hello")return;
-  if(m.type==="error"){alert(m.message);return}
-  if(m.type==="roster"){
-    $("players").innerHTML="";
-    (m.players||[]).forEach(p=>{const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li)});
-    return;
-  }
-  if(m.type==="question"){
-    current=m.question.index;answered=false;roundFinished=false;timeLeft=m.question.seconds;
-    $("roundCount").textContent="Question "+(current+1)+" / "+m.question.total;
-    $("feedback").textContent="";
-    $("hostControls").classList.add("hidden");
-    renderQuestion(m.question,false);show("game");return;
-  }
-  if(m.type==="tick"){
-    timeLeft=m.time;$("timer").textContent=timeLeft+" seconds";return;
-  }
-  if(m.type==="answerResult"){
-    $("feedback").textContent=m.correct?"✅ Correct! "+m.score+" points":"❌ Not quite!";
-    return;
-  }
-  if(m.type==="board"){
-    const list=m.board||[];$("leaderboard").innerHTML="";
-    list.forEach((p,i)=>{const li=document.createElement("li");li.textContent=(i+1)+". "+p.name+" — "+p.score+" pts";$("leaderboard").appendChild(li)});
-    return;
-  }
-  if(m.type==="roundEnd"){
-    roundFinished=true;
-    $("answerArea").querySelectorAll("button,input").forEach(el=>el.disabled=true);
-    $("feedback").textContent="Correct answer: "+m.correctLabel+" • "+m.correctCount+" correct";
-    return;
-  }
-  if(m.type==="gameOver"){
-    $("leaderboard").innerHTML="";
-    (m.board||[]).forEach((p,i)=>{const li=document.createElement("li");li.textContent=(i+1)+". "+p.name+" — "+p.score+" pts";$("leaderboard").appendChild(li)});
-    show("results");status("Quiz finished!");
-  }
+ if(!m||typeof m!=="object")return;
+ if(m.type==="error"){alert(m.message);return}
+ if(m.type==="roster"){
+  $("players").innerHTML="";(m.players||[]).forEach(p=>{const li=document.createElement("li");li.textContent="🟢 "+p.name;$("players").appendChild(li)});
+  $("lobbyInfo").textContent=(m.players||[]).length+" player(s) connected";
+  $("quizTitle").textContent="Game lobby";$("hostStart").classList.add("hidden");$("pin").textContent=pin;show("lobby");return;
+ }
+ if(m.type==="question"){
+  current=m.index;submitted=false;roundDone=false;remaining=m.q.seconds;
+  $("round").textContent="Question "+(current+1)+" / "+m.total;
+  $("hostControls").classList.add("hidden");renderQuestion(m.q,false);show("game");return;
+ }
+ if(m.type==="tick"){remaining=m.remaining;$("timer").textContent=remaining+" seconds";return}
+ if(m.type==="result"){$("feedback").textContent=m.correct?"✅ Correct! "+m.score+" points":"❌ Not quite!";return}
+ if(m.type==="board"){renderRemoteBoard(m.board);return}
+ if(m.type==="roundEnd"){
+  roundDone=true;$("answers").querySelectorAll("button").forEach(b=>b.disabled=true);
+  $("feedback").textContent="Correct answer: "+m.correct+" • "+m.count+" correct";
+  renderRemoteBoard(m.board);return;
+ }
+ if(m.type==="gameOver"){renderRemoteBoard(m.board);show("results");status("Quiz finished!")}
 }
-updateEditor();
+function renderRemoteBoard(board){
+ $("leaderboard").innerHTML="";
+ (board||[]).forEach((p,i)=>{const li=document.createElement("li");li.textContent=(i+1)+". "+p.name+" — "+p.score+" pts";$("leaderboard").appendChild(li)});
+ $("winner").textContent=board&&board.length?"Leading: "+board[0].name+" — "+board[0].score+" points":"No players yet";
+}
+renderCatalog();
 </script>
 </body>
 </html>
